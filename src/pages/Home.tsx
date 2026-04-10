@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 import {
     Card,
@@ -35,9 +44,10 @@ import { Button } from "@/components/ui/button";
 
 
 const recipeSchema = z.object({
-    title: z.string().min(2, "Tytuł jest za krótki"),
+    title: z.string().min(2, "Tytuł jest za krótki") .regex(/^[A-ZĄĆĘŁŃÓŚŹŻ]/, "Tytuł musi zaczynać się wielką literą"),
     description: z.string().min(5, "Opis jest za krótki"),
-    image: z.string().url("To nie jest poprawny URL"),
+    image: z.string().url("To nie jest poprawny URL") .refine((url) => url.includes("https"), "URL musi używać https"),
+    rating: z.number().min(1).max(5),
 });
 
 
@@ -49,11 +59,24 @@ export default function Home() {
             title: "",
             description: "",
             image: "",
+            rating: 0,
             },
      });
 
     const [recipes, setRecipes] = useState([]);
-    const [selectedRecipe, setSelectedRecipe] = useState(null);
+    type SelectedRecipeMode = "add" | "edit" | "view";
+
+    type SelectedRecipe = {
+    id?: number;
+    title?: string;
+    description?: string;
+    image?: string;
+    rating?: number;
+    mode: SelectedRecipeMode;
+    } | null;
+
+    const [selectedRecipe, setSelectedRecipe] = useState<SelectedRecipe>(null);
+
     const [search, setSearch] = useState("");
     const [showFavorites, setShowFavorites] = useState(false);
 
@@ -80,6 +103,7 @@ export default function Home() {
             description: "Pyszny makaron z sosem jajecznym.",
             image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b",
             favorite: false,
+            rating: 4,
         },
         {
             id: 2,
@@ -87,6 +111,7 @@ export default function Home() {
             description: "Klasyczna sałatka z kurczakiem.",
             image: "https://images.unsplash.com/photo-1551183053-bf91a1d81141",
             favorite: false,
+            rating: 4,
         },
         {
             id: 3,
@@ -94,6 +119,7 @@ export default function Home() {
             description: "Domowe ciasto z jabłkami.",
             image: "https://images.unsplash.com/photo-1519681393784-d120267933ba",
             favorite: false,
+            rating: 4,
         },
         ]);
     } else {
@@ -130,8 +156,9 @@ export default function Home() {
 
 
     return (
+        <TooltipProvider>
     <>
-      <div className="p-6 flex justify-between items-center">
+      <div className="container mx-auto p-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Przepisy</h1>
 
         <Button
@@ -188,28 +215,37 @@ export default function Home() {
                         }}
                     >
                         <Card
-                        className="cursor-pointer hover:shadow-lg transition relative"
+                        className="group cursor-pointer hover:shadow-lg transition relative container-type-inline-size"
                         onClick={() => setSelectedRecipe(recipe)}
                         >
-                        <div
-                            className="absolute top-3 right-3"
-                            onClick={(e) => {
-                            e.stopPropagation();
-                            setFavoriteById(recipe.id);
-                            }}
-                        >
-                            <motion.div
-                            whileTap={{ scale: 1.3, y: -4 }}
-                            animate={recipe.favorite ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-                            transition={{ type: "spring", stiffness: 300, duration: 0.3 }}
-                            >
-                            {recipe.favorite ? (
-                                <Heart size={24} className="text-red-500 drop-shadow" fill="red" />
-                            ) : (
-                                <Heart size={24} className="text-white drop-shadow" />
-                            )}
-                            </motion.div>
-                        </div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div
+                                className="absolute top-3 right-3"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFavoriteById(recipe.id);
+                                }}
+                                >
+                                <motion.div
+                                    whileTap={{ scale: 1.3, y: -4 }}
+                                    animate={recipe.favorite ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                                    transition={{ type: "spring", stiffness: 300, duration: 0.3 }}
+                                >
+                                    {recipe.favorite ? (
+                                    <Heart size={24} className="text-red-500 drop-shadow" fill="red" />
+                                    ) : (
+                                    <Heart size={24} className="text-white drop-shadow" />
+                                    )}
+                                </motion.div>
+                                </div>
+                            </TooltipTrigger>
+
+                            <TooltipContent>
+                                <p>{recipe.favorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}</p>
+                            </TooltipContent>
+                        </Tooltip>
+
 
                         <img
                             src={recipe.image}
@@ -219,36 +255,57 @@ export default function Home() {
                         />
 
                         <CardHeader>
-                            <CardTitle>{recipe.title}</CardTitle>
+                            <CardTitle className="group-hover:text-blue-600 transition @container">
+                                <span className="text-lg @lg:text-2xl">
+                                    {recipe.title}
+                                </span>
+                            </CardTitle>
+
                         </CardHeader>
 
                         <CardContent>
                             <p>{recipe.description}</p>
                         </CardContent>
 
-                        <div className="flex justify-end gap-2 px-6 pb-4">
-                            <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                form.reset(recipe);
-                                setSelectedRecipe({ ...recipe, mode: "edit" });
-                            }}
-                            className="text-blue-600 hover:underline"
-                            >
-                            Edytuj
-                            </button>
+                        <CardContent>
+                            <p>Rating: {recipe.rating}</p>
+                        </CardContent>
 
-                            <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setRecipes(recipes.filter((r) => r.id !== recipe.id));
-                                setSelectedRecipe(null);
-                            }}
-                            className="text-red-600 hover:underline"
-                            >
-                            Usuń
-                            </button>
+                        <div className="px-6 pb-4 flex justify-end">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-blue-600 hover:underline cursor-pointer"
+                                >
+                                Opcje
+                                </DropdownMenuTrigger>
+
+                                <DropdownMenuContent
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white"
+                                >
+                                <DropdownMenuItem
+                                    onClick={() => {
+                                    form.reset(recipe);
+                                    setSelectedRecipe({ ...recipe, mode: "edit" });
+                                    }}
+                                >
+                                    Edytuj
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                    onClick={() => {
+                                    setRecipes(recipes.filter((r) => r.id !== recipe.id));
+                                    setSelectedRecipe(null);
+                                    }}
+                                    className="text-red-600"
+                                >
+                                    Usuń
+                                </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
+
                         </Card>
                     </motion.div>
             ))}
@@ -323,6 +380,33 @@ export default function Home() {
                         )}
                     />
 
+                    <FormField
+                        control={form.control}
+                        name="rating"
+                        render={({ field }) => (
+                            <FormItem className="">
+                            <FormLabel className="">Ocena</FormLabel>
+                            <FormControl>
+                                <div className="flex gap-2">
+                                {[1,2,3,4,5].map((n) => (
+                                    <button
+                                    type="button"
+                                    key={n}
+                                    onClick={() => field.onChange(n)}
+                                    className={`p-2 rounded-full border 
+                                        ${field.value === n ? "bg-black text-white" : "bg-white"}`}
+                                    >
+                                    {n}
+                                    </button>
+                                ))}
+                                </div>
+                            </FormControl>
+                            {/* <FormMessage error={error}/> */}
+                        </FormItem>
+                        )}
+                        />
+
+
                     <button
                         type="submit"
                         className="bg-black text-white p-3 rounded-lg"
@@ -335,5 +419,6 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </>
+    </TooltipProvider>
   );
 }
