@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { z } from "zod";
+import { boolean, z } from "zod";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -53,8 +53,9 @@ const recipeSchema = z.object({
 
 type Recipe = z.infer<typeof recipeSchema>;
 
+
 type WithId = { id: number };
-type RecipeWithId = Recipe & WithId;
+type RecipeWithId = Recipe & WithId & { favorite: boolean };
 
 type SelectedRecipeMode = "add" | "edit" | "view";
 
@@ -99,7 +100,11 @@ export default function Home() {
     const [recipes, setRecipes] = useState<RecipeWithId[]>([]);
     setRecipesGlobal = setRecipes;
 
-    type SelectedRecipe = (RecipeWithId & { mode: SelectedRecipeMode }) | null;
+    type SelectedRecipe =
+    | { mode: "add" }
+    | (RecipeWithId & { mode: "edit" | "view" })
+    | null;
+
     const [selectedRecipe, setSelectedRecipe] = useState<SelectedRecipe>(null);
 
     const [search, setSearch] = useState<string>("");
